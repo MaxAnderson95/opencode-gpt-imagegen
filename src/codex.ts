@@ -8,7 +8,7 @@ const CODEX_RESPONSES_ENDPOINT = "https://chatgpt.com/backend-api/codex/response
 
 // Codex model slug used for the hosted image_generation turn.
 // https://github.com/openai/codex/blob/fca81eeb5bab4cad997622a359d446e6489c445b/codex-rs/models-manager/models.json#L24
-const SUBSCRIPTION_MODEL = "gpt-5.5"
+const SUBSCRIPTION_MODEL = "gpt-6-sol"
 
 type CodexSSEEvent = {
   type?: string

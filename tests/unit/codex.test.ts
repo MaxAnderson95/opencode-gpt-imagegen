@@ -99,7 +99,7 @@ describe("callViaCodexResponses", () => {
     expect(headers["Content-Type"]).toBe("application/json")
 
     const body = JSON.parse(init.body as string)
-    expect(body.model).toBe("gpt-5.5")
+    expect(body.model).toBe("gpt-6-sol")
     expect(body.stream).toBe(true)
     expect(body.store).toBe(false)
     // The instruction is load-bearing: it forces the backend to emit an image, not text.
