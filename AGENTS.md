@@ -21,7 +21,7 @@
 
 ## E2E Requirements
 
-- `tests/e2e.test.ts` shells out to the `opencode` CLI with `--dangerously-skip-permissions` in a temporary workdir.
+- `tests/e2e/subscription.test.ts` shells out to the `opencode` CLI in a temporary workdir. Its configuration denies all tools except `gpt_imagegen` so the agent cannot modify generated files with other tools.
 - E2E requires OpenCode to be authenticated with ChatGPT OAuth; the plugin reads `OPENCODE_AUTH_CONTENT` first, then `$XDG_DATA_HOME/opencode/auth.json`.
 - The e2e tests assert that produced files are valid PNGs and cover the plugin's output auto-versioning behavior.
 
