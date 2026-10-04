@@ -15,7 +15,7 @@
 - `bunx biome ci .` is the CI formatter/linter check.
 - `bun run check` runs `biome check --write .`; it may modify files.
 - `bun run test` runs `bun test tests/unit` — unit tests only, and is what CI uses. (A bare `bun test` would also discover the e2e files under `tests/e2e/` and try to run them for real, so prefer the script.)
-- `bun run test:e2e_subscription` sets `OPENCODE_MODEL=openai/gpt-5.5` and runs `tests/e2e/subscription.test.ts` (ChatGPT subscription / OAuth path). It can take minutes because it calls `opencode run` and generates real images. The future API-key path gets its own `test:e2e_apikey` script + `tests/e2e/apikey.test.ts`.
+- `bun run test:e2e_subscription` sets `OPENCODE_MODEL=openai/gpt-6-sol` and runs `tests/e2e/subscription.test.ts` (ChatGPT subscription / OAuth path). It can take minutes because it calls `opencode run` and generates real images. The future API-key path gets its own `test:e2e_apikey` script + `tests/e2e/apikey.test.ts`.
 - Each e2e path is its own script (its own `bun test` process), which also avoids the unit-test `process.env` leak into the single-process e2e `opencode` spawn.
 - CI runs `bun run typecheck`, `bunx biome ci .`, and `bun run test`. The e2e suites are not run in CI's default checks (they need real auth + generations); they are invoked separately via their `test:e2e_*` scripts.
 
