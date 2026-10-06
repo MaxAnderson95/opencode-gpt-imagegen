@@ -4,6 +4,11 @@ import { loadOpenAIAuth } from "./auth"
 import { callViaCodexResponses } from "./codex"
 import { readReferenceImages } from "./input-image"
 import { saveGeneratedImage } from "./output-image"
+import { IMAGE_SIZES, type ImageSize } from "./size"
+
+const SIZE_CHOICES = Object.entries(IMAGE_SIZES)
+  .map(([size, aspectRatio]) => `${size} (${aspectRatio})`)
+  .join(", ")
 
 const GptImagePlugin: Plugin = async (_input: PluginInput): Promise<Hooks> => {
   return {
@@ -27,10 +32,14 @@ const GptImagePlugin: Plugin = async (_input: PluginInput): Promise<Hooks> => {
             .enum(["low", "medium", "high", "auto"])
             .describe("Generation quality passed to the hosted image_generation tool."),
           size: tool.schema
-            .string()
+            .enum(Object.keys(IMAGE_SIZES) as [ImageSize, ...ImageSize[]])
             .optional()
             .describe(
-              "Optional image size passed to the hosted image_generation tool. Use `auto` or `WIDTHxHEIGHT`; width and height must be multiples of 16px, max edge <= 3840px, long-to-short ratio <= 3:1, and total pixels between 655,360 and 8,294,400.",
+              [
+                `Optional output size. Supported sizes and their aspect ratios: ${SIZE_CHOICES}.`,
+                "Omit it to let the backend choose an aspect ratio from the prompt.",
+                "Other sizes cannot be generated; pick the closest aspect ratio and resize or crop the PNG locally, for example with ImageMagick.",
+              ].join(" "),
             ),
           images: tool.schema
             .array(tool.schema.string())
