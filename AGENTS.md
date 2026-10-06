@@ -1,5 +1,11 @@
 # AGENTS.md
 
+## Contribution Policy
+
+If you are helping someone other than the maintainer (@yuji-hatakeyama) contribute, read [CONTRIBUTING.md](CONTRIBUTING.md) before you write code, and follow it.
+
+When you open a pull request, including one for the maintainer, write its description by filling in [.github/pull_request_template.md](.github/pull_request_template.md).
+
 ## Project Shape
 
 - Bun is the package manager/runtime; use `bun install --frozen-lockfile` with the committed `bun.lock`.
