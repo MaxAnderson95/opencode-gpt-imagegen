@@ -135,6 +135,8 @@ describe("gpt_imagegen e2e (subscription)", () => {
           `Style: ${STYLE}. Size: 2048x1152. Quality: medium.`,
       )
       const out = path.join(WORKDIR, "together.png")
+      // XXX: The Codex backend can return a different size even when width and height are explicit.
+      // This case intentionally checks PNG validity without asserting exact dimensions.
       await assertPng(out)
       console.log(`C: ${out}`)
     },
