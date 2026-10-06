@@ -33,13 +33,14 @@ async function writeOpencodeConfig(): Promise<void> {
   const config = {
     $schema: "https://opencode.ai/config.json",
     plugin: [pathToFileURL(REPO_DIR).href],
+    permission: { "*": "deny", gpt_imagegen: "allow" },
   }
   await writeFile(path.join(cfgDir, "opencode.jsonc"), JSON.stringify(config, null, 2))
 }
 
 async function runOpencode(prompt: string): Promise<void> {
   return new Promise((resolve, reject) => {
-    const args = ["run", prompt, "--dir", WORKDIR, "--dangerously-skip-permissions"]
+    const args = ["run", prompt, "--dir", WORKDIR]
     if (process.env.OPENCODE_MODEL) args.push("--model", process.env.OPENCODE_MODEL)
     const proc = spawn("opencode", args, {
       stdio: "inherit",
@@ -134,6 +135,8 @@ describe("gpt_imagegen e2e (subscription)", () => {
           `Style: ${STYLE}. Size: 2048x1152. Quality: medium.`,
       )
       const out = path.join(WORKDIR, "together.png")
+      // XXX: The Codex backend can return a different size even when width and height are explicit.
+      // This case intentionally checks PNG validity without asserting exact dimensions.
       await assertPng(out)
       console.log(`C: ${out}`)
     },

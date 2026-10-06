@@ -44,7 +44,12 @@ export async function callViaCodexResponses(
   args: GenerateArgs,
   inputImageDataUrls: string[],
 ): Promise<string> {
-  const userContent: Array<Record<string, unknown>> = [{ type: "input_text", text: args.prompt }]
+  const dimensions = args.size?.match(/^(\d+)x(\d+)$/)
+  // The Codex backend can ignore the tool's size option, so repeat concrete dimensions in the prompt.
+  const prompt = dimensions
+    ? `${args.prompt} Generate the image with a width of ${dimensions[1]} pixels and a height of ${dimensions[2]} pixels.`
+    : args.prompt
+  const userContent: Array<Record<string, unknown>> = [{ type: "input_text", text: prompt }]
   for (const dataUrl of inputImageDataUrls) {
     userContent.push({ type: "input_image", image_url: dataUrl })
   }
