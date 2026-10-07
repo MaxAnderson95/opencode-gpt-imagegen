@@ -4,11 +4,7 @@ import { loadOpenAIAuth } from "./auth"
 import { callViaCodexResponses } from "./codex"
 import { readReferenceImages } from "./input-image"
 import { saveGeneratedImage } from "./output-image"
-import { IMAGE_SIZES, type ImageSize } from "./size"
-
-const SIZE_CHOICES = Object.entries(IMAGE_SIZES)
-  .map(([size, aspectRatio]) => `${size} (${aspectRatio})`)
-  .join(", ")
+import { IMAGE_SIZES, type ImageSize, parseImageSize, SIZE_CHOICES } from "./size"
 
 const GptImagePlugin: Plugin = async (_input: PluginInput): Promise<Hooks> => {
   return {
@@ -52,13 +48,14 @@ const GptImagePlugin: Plugin = async (_input: PluginInput): Promise<Hooks> => {
             .describe("Optional reference image paths, relative to the project directory unless absolute."),
         },
         async execute(args, ctx) {
+          const size = parseImageSize(args.size)
           const auth = await loadOpenAIAuth()
           if (!auth) {
             throw new Error("OpenAI ChatGPT OAuth credentials not configured.")
           }
 
           const inputImageDataUrls = await readReferenceImages(args.images, ctx.directory)
-          const base64 = await callViaCodexResponses(auth, args, inputImageDataUrls)
+          const base64 = await callViaCodexResponses(auth, { ...args, size }, inputImageDataUrls)
 
           const { savedPath, versioned, message } = await saveGeneratedImage(args.out, ctx.directory, base64)
 
