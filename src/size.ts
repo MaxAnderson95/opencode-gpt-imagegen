@@ -1,5 +1,5 @@
 // The Codex backend ignores the requested pixel size, outputs about 1024x1536 pixels in total,
-// and takes only the aspect ratio from the prompt. These sizes fit that pixel count, so they come out exactly.
+// and takes only the aspect ratio from the prompt. These sizes fit that pixel count, so they come out exactly or within 1px.
 // https://github.com/yuji-hatakeyama/opencode-gpt-imagegen/issues/107
 export const IMAGE_SIZES = {
   "1254x1254": "1:1",

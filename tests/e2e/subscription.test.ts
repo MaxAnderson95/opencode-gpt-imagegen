@@ -137,8 +137,9 @@ describe("gpt_imagegen e2e (subscription)", () => {
       const out = path.join(WORKDIR, "together.png")
       const buf = await assertPng(out)
       const { width, height } = readPngDimensions(buf)
-      expect(width).toBe(1672)
-      expect(height).toBe(941)
+      // The backend sometimes returns this size with an edge 1px off (e.g. 1672x940).
+      expect(Math.abs(width - 1672)).toBeLessThanOrEqual(1)
+      expect(Math.abs(height - 941)).toBeLessThanOrEqual(1)
       console.log(`C: ${out}`)
     },
     TEST_TIMEOUT_MS,
