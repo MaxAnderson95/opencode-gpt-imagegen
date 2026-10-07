@@ -21,6 +21,12 @@ const GptImagePlugin: Plugin = async (_input: PluginInput): Promise<Hooks> => {
           "Reference images may be attached through `images`; label each image's role inline in `prompt`, for example: 'Image 1: reference image'.",
           "For many distinct assets, invoke gpt_imagegen once per requested asset rather than relying on multi-image output; gpt_imagegen returns one image per call.",
           "Requires OpenCode to be authenticated with ChatGPT OAuth. Returns the absolute path of the saved PNG.",
+          "Before generating, decide the size. If the user named a size that is not supported, or gave no size and the use does not clearly imply a shape, ask the user which size to use (with the question tool when available).",
+          "In that question, offer every supported size as an option labeled like `1672x941 (16:9)`, put the one you recommend first with ` (Recommended)` appended to its label, and give each option a short description of what it suits.",
+          "Do not add catch-all options such as 'Other' or 'Let me decide'.",
+          "In the question text, say that other sizes cannot be generated directly and that the image can be resized or cropped to an exact size afterwards, for example with ImageMagick.",
+          "If the use clearly implies a shape, such as a YouTube thumbnail or an app icon, pick the matching size without asking.",
+          "The saved image can differ from the requested size by 1px, so do not promise exact pixel dimensions before generating. After generating, tell the user the size reported in the tool result.",
         ].join(" "),
         // https://developers.openai.com/api/docs/guides/image-generation
         args: {
@@ -36,9 +42,8 @@ const GptImagePlugin: Plugin = async (_input: PluginInput): Promise<Hooks> => {
             .optional()
             .describe(
               [
-                `Optional output size. Supported sizes and their aspect ratios: ${SIZE_CHOICES}.`,
-                "Omit it to let the backend choose an aspect ratio from the prompt.",
-                "Other sizes cannot be generated; pick the closest aspect ratio and resize or crop the PNG locally, for example with ImageMagick.",
+                `Output size. Only these sizes can be generated: ${SIZE_CHOICES}.`,
+                "Typical choices: 1672x941 for a 16:9 video thumbnail, 1254x1254 for a square icon, 941x1672 for a phone wallpaper.",
               ].join(" "),
             ),
           images: tool.schema
