@@ -12,3 +12,9 @@ This plugin is maintained by one person and aims to keep a small feature set.
 - [MUST] `bun run typecheck` passes.
 - [MUST] `bunx biome ci .` passes.
 - [MUST] `bun run test` passes.
+
+## Commit messages and pull request titles
+
+- Follow [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/), for example `fix: ...`, `feat: ...`, or `docs: ...`.
+- Pull request titles become the entries of the release notes. Describe what changes for plugin users rather than how the code changes.
+- If the change breaks existing usage, for example by removing or restricting a `gpt_imagegen` argument, add `!` after the type, for example `feat!: ...`.

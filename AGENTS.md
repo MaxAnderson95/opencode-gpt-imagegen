@@ -4,7 +4,7 @@
 
 If you are helping someone other than the maintainer (@yuji-hatakeyama) contribute, read [CONTRIBUTING.md](CONTRIBUTING.md) before you write code, and follow it.
 
-When you open a pull request, including one for the maintainer, write its description by filling in [.github/pull_request_template.md](.github/pull_request_template.md).
+When you open a pull request, including one for the maintainer, write its description by filling in [.github/pull_request_template.md](.github/pull_request_template.md). Write its title as described in [CONTRIBUTING.md](CONTRIBUTING.md#commit-messages-and-pull-request-titles).
 
 ## Project Shape
 
@@ -43,3 +43,10 @@ When you open a pull request, including one for the maintainer, write its descri
 - `prepublishOnly` runs `bun run build`, so `npm publish` always rebuilds `dist/` first.
 - Release flow: run `bun run release:patch` (or `:minor` / `:major`) on a clean `main`. The npm script chains `scripts/prepare-release.sh <level>` (preflight, diff review, version bump) with `git push --follow-tags`. The shell script checks the working tree is clean and in sync with `origin/main`, prints the commits since the previous tag along with a GitHub compare URL for diff review, asks for confirmation, and runs `npm version <level>` to create the `chore: release X.Y.Z` commit and `vX.Y.Z` tag locally; the push happens only on success.
 - The tag push triggers `.github/workflows/release.yml`, which runs `npm publish --provenance --access public` via npm OIDC trusted publisher (no `NPM_TOKEN` secret) and creates a GitHub release with auto-generated notes. The npm package must have GitHub Actions registered as a trusted publisher on npmjs.com for OIDC to work.
+- Release notes are generated from pull request titles. If the release includes a breaking change (a title with `!`, such as `feat!:`), edit the GitHub release after the workflow creates it, and add a `Breaking changes` section at the top. For each change, write what changed and how users should update their usage, and link the pull request, for example:
+
+  ```markdown
+  ## Breaking changes
+
+  - `size` accepts only `1254x1254`, `1536x1024`, `1024x1536`, `1448x1086`, `1086x1448`, `1672x941`, and `941x1672`. `auto` and other sizes are rejected. Omit `size` to let the backend choose, or pick the size with the closest aspect ratio and resize the output locally. (#108)
+  ```
