@@ -14,7 +14,7 @@ This repository is MaxAnderson95's independent OpenCode 2 fork. Read CONTRIBUTIN
 
 ## Verification
 
-- Run `bun run typecheck`, `bun run test`, and the installed `./node_modules/.bin/biome ci .` before publication. `bun run build` checks the bundled ESM output but is not a prerequisite for Git installation.
+- Run `bun run typecheck`, `bun run test`, and the installed `./node_modules/.bin/biome ci .` before publication. `bun run bundle` checks the bundled ESM output. Keep that script named `bundle`: npm's Git fetcher runs dependency preparation for packages with a `build` script, even when their source already runs.
 - Unit tests live in `tests/unit`; use `bun run test` instead of bare `bun test` so real image generation remains opt-in.
 - `bun run test:e2e_subscription` connects to `OPENCODE_E2E_SERVER`, defaulting to the plugin-dev server at `http://127.0.0.1:4196`. It uses real subscription quota. Use `OPENCODE_E2E_PLUGIN` to test an installed package target; otherwise it tests this local checkout.
 - The e2e suite allows only `gpt_imagegen` through project permissions and removes its temporary output directory. It verifies PNG output, auto-versioning, and reference-image input.

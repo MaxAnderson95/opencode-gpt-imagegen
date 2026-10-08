@@ -17,8 +17,8 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "check": "biome check --write .",
-    "prebuild": "rm -rf dist",
-    "build": "bun build ./src/index.ts --outdir ./dist --target node --format esm --packages external",
+    "prebundle": "rm -rf dist",
+    "bundle": "bun build ./src/index.ts --outdir ./dist --target node --format esm --packages external",
     "test": "bun test tests/unit",
     "test:e2e_subscription": "OPENCODE_MODEL=openai/gpt-6-sol bun test tests/e2e/subscription.test.ts",
     "release:patch": "bash scripts/prepare-release.sh patch && git push --follow-tags",

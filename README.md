@@ -59,10 +59,10 @@ bun install --frozen-lockfile
 bun run typecheck
 bun run test
 ./node_modules/.bin/biome ci .
-bun run build
+bun run bundle
 ```
 
-The package ships TypeScript source for OpenCode's loader. `bun run build` also creates a bundled ESM file in `dist/` for inspection; Git installation does not require a build lifecycle script.
+The package ships TypeScript source for OpenCode's loader. `bun run bundle` also creates a bundled ESM file in `dist/` for inspection. The command is named `bundle` because npm's Git fetcher treats a `build` script as a reason to run dependency preparation even when the package ships runnable source.
 
 The opt-in subscription suite generates three real images and tests generation, filename versioning, and reference images. It connects to an existing OpenCode 2 server, uses that server's active Codex account, and removes its temporary output directory afterward. Supply `OPENCODE_PASSWORD` through your existing credential loader if the server requires authentication:
 
