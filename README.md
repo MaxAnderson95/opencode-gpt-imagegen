@@ -1,108 +1,77 @@
-# opencode-gpt-imagegen
+# opencode-gpt-imagegen for OpenCode 2
 
-> **⚠️ ChatGPT subscription users: update before October 14, 2026.** [GPT-5.5 will retire from Codex with ChatGPT sign-in](https://learn.chatgpt.com/docs/models#gpt-55-retirement). Plugin versions before `0.1.13` use GPT-5.5 and will stop generating images. Follow the [update steps](#updating-the-plugin) to install `0.1.13` or later.
+> [!WARNING]
+> This project is a work in progress. It is still being built and is not ready for use.
 
-<p align="center"><img src="./ogp.png" alt="opencode-gpt-imagegen × gpt-image-2" /></p>
+Generate PNG images through your ChatGPT subscription with the `gpt_imagegen` tool. Reference images can guide new images or edits, and existing output files get a numbered filename instead of being overwritten.
 
-> Bring [**ChatGPT Images 2.0**](https://openai.com/index/introducing-chatgpt-images-2-0/) (`gpt-image-2`) to [OpenCode](https://opencode.ai). Use it through your **ChatGPT subscription** (no API costs!) or through the **OpenAI API** — your call.
-
-[![OpenCode plugin](https://img.shields.io/badge/OpenCode-plugin-blue.svg)](https://opencode.ai/docs/plugins/)
-[![npm version](https://img.shields.io/npm/v/opencode-gpt-imagegen.svg)](https://www.npmjs.com/package/opencode-gpt-imagegen)
-[![CI](https://github.com/yuji-hatakeyama/opencode-gpt-imagegen/actions/workflows/ci.yml/badge.svg)](https://github.com/yuji-hatakeyama/opencode-gpt-imagegen/actions/workflows/ci.yml)
-[![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
-
-| Auth path | Status | Billing |
-|---|---|---|
-| **ChatGPT subscription** (OAuth) | **Available now in v0.1.0** | **No extra cost** — comes out of your existing Plus / Pro / Business plan |
-| **OpenAI API key** | **Coming soon in v0.2.0** | Pay-per-image against your API credits, with `generate` + `edit` support |
-
-## Highlights
-
-- **Subscription-friendly.** Generations ride on the same Codex backend channel OpenCode already uses for ChatGPT subscription chat — billed against your ChatGPT plan, not your API credits.
-- **Reference images.** Pass any number of input images alongside the prompt for style guidance, edit targets, or compositing inputs.
+This is Max Anderson's V2-only fork of [yuji-hatakeyama/opencode-gpt-imagegen](https://github.com/yuji-hatakeyama/opencode-gpt-imagegen). It targets OpenCode **2.0.24** and does not support OpenCode 1. The npm package named `opencode-gpt-imagegen` belongs to the upstream project; install this fork from GitHub.
 
 ## Installation
 
-Add this plugin to your [OpenCode config](https://opencode.ai/docs/plugins/). For example, in `opencode.json`:
+```sh
+opencode plugin add 'github:MaxAnderson95/opencode-gpt-imagegen#main'
+```
 
-```json
+Or add the package to `~/.config/opencode/opencode.jsonc`:
+
+```jsonc
 {
   "$schema": "https://opencode.ai/config.json",
-  "plugin": ["opencode-gpt-imagegen"]
+  "plugins": ["github:MaxAnderson95/opencode-gpt-imagegen#main"]
 }
 ```
 
-OpenCode auto-installs the package via Bun on next launch — no separate `npm install` step is needed. The plugin requires OpenCode to be authenticated with ChatGPT.
+Update the installed Git revision with:
 
-### Updating the plugin
+```sh
+opencode plugin update 'github:MaxAnderson95/opencode-gpt-imagegen#main'
+```
 
-OpenCode caches npm plugins, so restarting it may keep an older version. To update this plugin:
+## Authentication
 
-1. Check the `plugin` entry in your OpenCode config. Use `"opencode-gpt-imagegen"` or `"opencode-gpt-imagegen@latest"` to request the latest version. If you pinned a version, remove the version suffix or change it to the version you want to install.
-2. Quit OpenCode completely.
-3. If your entry is unversioned or uses `@latest`, delete the cached directory `~/.cache/opencode/packages/opencode-gpt-imagegen@latest/`.
-4. Restart OpenCode to install the requested version.
+Select an existing OpenAI Codex browser or device-code OAuth account in OpenCode. The plugin resolves the active connection on every generation through OpenCode's credential service, which owns token refresh and account selection. It does not read `auth.json` or create its own credential files.
 
-If you use an unversioned entry or `@latest` but do not have that directory, see [OpenCode's cache-clearing instructions](https://opencode.ai/docs/troubleshooting/#clear-the-cache) for other cache layouts.
+Generations use `https://chatgpt.com/backend-api/codex/responses`, with `gpt-6-sol` calling the hosted `image_generation` tool. This uses the selected ChatGPT subscription, with no API-key billing fallback. API keys and ChatGPT token-sharing connections are not supported by this Codex endpoint integration.
 
 ## Usage
 
-Just ask your agent in natural language and `gpt_imagegen` will be picked up.
+Ask the agent to generate an image:
 
-The three examples below are the **actual outputs of this repo's e2e test suite** — see [`tests/e2e/subscription.test.ts`](./tests/e2e/subscription.test.ts) for the exact prompts and assertions.
+> Generate a watercolor fox in a pine forest. Use medium quality and 1024x1024. Save it as fox.png.
 
-### Example A — generate
+The tool takes:
 
-> Draw a man in a navy samue with a red hachimaki, standing in a garden full of cherry blossoms. 90s anime style. Save it as `character.png`, portrait 1024x1536.
+| Argument | Required | Meaning |
+| --- | --- | --- |
+| `prompt` | Yes | Description of the image. Label reference roles as "Image 1", "Image 2", etc. |
+| `out` | Yes | Output PNG path, relative to the session directory unless absolute. |
+| `quality` | Yes | `low`, `medium`, `high`, or `auto`. |
+| `size` | No | `auto` or `WIDTHxHEIGHT`. The backend may choose different dimensions. |
+| `images` | No | Array of reference image paths, relative to the session directory unless absolute. |
 
-<p align="center"><img src="./assets/character.png" alt="Example A output: man in samue, portrait" width="320" /></p>
+Each call produces one image. If `fox.png` exists, the next output is `fox-v2.png`, then `fox-v3.png`, up to `-v999`. Concurrent writes to the same path can still race; version selection is not atomic. Interrupting the tool cancels its HTTP request.
 
-### Example B — auto-versioning
+## Development and tests
 
-`gpt_imagegen` never overwrites an existing file: when the `out` path is already taken, it picks `-v2`, `-v3`, … instead.
+```sh
+bun install --frozen-lockfile
+bun run typecheck
+bun run test
+./node_modules/.bin/biome ci .
+bun run build
+```
 
-> Now do the same path but make it a woman in a yellow yukata holding a red wagasa, in a moonlit garden with fireflies. Landscape 1536x1024.
+The package ships TypeScript source for OpenCode's loader. `bun run build` also creates a bundled ESM file in `dist/` for inspection; Git installation does not require a build lifecycle script.
 
-The previous `character.png` is left untouched; the new image lands at `character-v2.png`.
+The opt-in subscription suite generates three real images and tests generation, filename versioning, and reference images. It connects to an existing OpenCode 2 server, uses that server's active Codex account, and removes its temporary output directory afterward. Supply `OPENCODE_PASSWORD` through your existing credential loader if the server requires authentication:
 
-<p align="center"><img src="./assets/character-v2.png" alt="Example B output: woman in yukata, landscape (auto-versioned)" width="480" /></p>
+```sh
+OPENCODE_E2E_SERVER=http://127.0.0.1:4196 bun run test:e2e_subscription
+```
 
-### Example C — feed existing image files as input
-
-Pass any number of image paths via the `images` argument and the model uses them as references for the next generation — for style guidance, characters to keep, scenes to extend, and so on.
-
-> Take `character.png` and `character-v2.png` and put both characters together on the engawa of an old Japanese house, smiling at the viewer. 2048x1152, same 90s anime style.
-
-<p align="center"><img src="./assets/together.png" alt="Example C output: both characters composed onto an engawa" width="640" /></p>
-
-## Roadmap
-
-| Version | Auth path | Scope | Status |
-|---|---|---|---|
-| **v0.1.0** | ChatGPT subscription | `gpt_imagegen` with optional reference images (generation + reference-guided edits via prompting) | **Released** |
-| **v0.2.0** | OpenAI API key | Adds the API-key billing path: both `generate` (`/v1/images/generations`) and `edit` (`/v1/images/edits`) with reference images | Next |
-| **v0.3.0** | OpenAI API key | Adds **pixel-precise mask inpainting** via `/v1/images/edits` (binary PNG alpha mask) | Planned |
-
-## How it works
-
-OpenCode already talks to the OpenAI Codex backend to power ChatGPT subscription chat. This plugin reuses that same endpoint, attaching the hosted `image_generation` tool to a single-turn request, then writes the returned PNG to disk. Auth is read from OpenCode's standard `auth.json`; no new credential surface is introduced.
-
-## Contributing
-
-Small bug fixes are welcome as direct pull requests. For features, refactors, or behavior changes, please open an issue first. See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
+Set `OPENCODE_E2E_PLUGIN=github:MaxAnderson95/opencode-gpt-imagegen#main` to test the installed GitHub package instead of the local checkout. Unit tests do not use subscription quota.
 
 ## Disclaimer
 
-This is an **unofficial, third-party** plugin, not affiliated with or endorsed by OpenAI or OpenCode.
-
-It uses the same Codex backend endpoint OpenCode itself calls for ChatGPT subscription chat — this plugin just adds the hosted `image_generation` tool to that conversation. Use must comply with OpenAI's [Terms of Use](https://openai.com/policies/row-terms-of-use/) and [Usage Policies](https://openai.com/policies/usage-policies/).
-
-## Star History
-
-<a href="https://www.star-history.com/?repos=yuji-hatakeyama%2Fopencode-gpt-imagegen&type=date&legend=bottom-right">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=yuji-hatakeyama/opencode-gpt-imagegen&type=date&theme=dark&legend=bottom-right" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=yuji-hatakeyama/opencode-gpt-imagegen&type=date&legend=bottom-right" />
-   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=yuji-hatakeyama/opencode-gpt-imagegen&type=date&legend=bottom-right" />
- </picture>
-</a>
+This unofficial plugin is not affiliated with OpenAI or OpenCode. Use must comply with OpenAI's [Terms of Use](https://openai.com/policies/row-terms-of-use/) and [Usage Policies](https://openai.com/policies/usage-policies/).

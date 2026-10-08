@@ -1,16 +1,16 @@
 {
   "name": "opencode-gpt-imagegen",
-  "version": "0.1.14",
-  "description": "OpenCode plugin for GPT Image 2 generation through your ChatGPT subscription, with reference images and safe PNG output.",
+  "version": "0.2.0",
+  "description": "OpenCode 2 plugin for GPT Image generation through your ChatGPT subscription, with reference images and safe PNG output.",
   "type": "module",
-  "main": "./dist/index.js",
+  "main": "./index.ts",
   "exports": {
-    ".": {
-      "import": "./dist/index.js"
-    }
+    ".": "./index.ts",
+    "./server": "./index.ts"
   },
   "files": [
-    "dist",
+    "index.ts",
+    "src",
     "README.md",
     "LICENSE"
   ],
@@ -21,7 +21,6 @@
     "build": "bun build ./src/index.ts --outdir ./dist --target node --format esm --packages external",
     "test": "bun test tests/unit",
     "test:e2e_subscription": "OPENCODE_MODEL=openai/gpt-6-sol bun test tests/e2e/subscription.test.ts",
-    "prepublishOnly": "bun run build",
     "release:patch": "bash scripts/prepare-release.sh patch && git push --follow-tags",
     "release:minor": "bash scripts/prepare-release.sh minor && git push --follow-tags",
     "release:major": "bash scripts/prepare-release.sh major && git push --follow-tags"
@@ -46,25 +45,21 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/yuji-hatakeyama/opencode-gpt-imagegen.git"
+    "url": "git+https://github.com/MaxAnderson95/opencode-gpt-imagegen.git"
   },
-  "homepage": "https://github.com/yuji-hatakeyama/opencode-gpt-imagegen#readme",
+  "homepage": "https://github.com/MaxAnderson95/opencode-gpt-imagegen#readme",
   "bugs": {
-    "url": "https://github.com/yuji-hatakeyama/opencode-gpt-imagegen/issues"
-  },
-  "peerDependencies": {
-    "@opencode-ai/plugin": "^1.14.0"
+    "url": "https://github.com/MaxAnderson95/opencode-gpt-imagegen/issues"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.3",
-    "@opencode-ai/plugin": "^1.14.41",
     "@tsconfig/node22": "^22.0.2",
     "@types/bun": "^1.3.14",
     "typescript": "^7.0.2"
   },
   "dependencies": {
+    "@opencode/plugin": "2.0.24",
     "eventsource-parser": "^4.0.0",
-    "file-type": "^22.0.1",
-    "xdg-basedir": "^5.1.0"
+    "file-type": "^22.0.1"
   }
 }

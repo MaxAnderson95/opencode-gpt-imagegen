@@ -1,94 +1,65 @@
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from "bun:test"
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
-import os from "node:os"
-import path from "node:path"
+import { describe, expect, mock, test } from "bun:test"
+import type { Context } from "@opencode/plugin/promise/plugin"
+import { loadOpenAIAuth } from "../../src/auth"
 
-const XDG = mkdtempSync(path.join(os.tmpdir(), "auth-xdg-"))
-const AUTH_FILE = path.join(XDG, "opencode", "auth.json")
-mkdirSync(path.dirname(AUTH_FILE), { recursive: true })
-
-// Capture so this file's env edits don't leak into other test files sharing the bun test
-// process — tests/e2e.test.ts spawns opencode with ...process.env.
-const ORIGINAL_XDG_DATA_HOME = process.env.XDG_DATA_HOME
-const ORIGINAL_AUTH_CONTENT = process.env.OPENCODE_AUTH_CONTENT
-let loadOpenAIAuth: typeof import("../../src/auth").loadOpenAIAuth
-
-function restoreEnv(key: string, value: string | undefined): void {
-  if (value === undefined) {
-    delete process.env[key]
-  } else {
-    process.env[key] = value
+function integration(credential: unknown, connected = true) {
+  const active = mock(async () => (connected ? { type: "credential", id: "test" } : undefined))
+  const resolve = mock(async () => credential)
+  return {
+    active,
+    resolve,
+    domain: { connection: { active, resolve } } as unknown as Pick<Context["integration"], "connection">,
   }
 }
 
-beforeAll(async () => {
-  // xdg-basedir captures XDG_DATA_HOME at import, so point it at the temp dir before
-  // importing the module under test (which transitively imports xdg-basedir).
-  process.env.XDG_DATA_HOME = XDG
-  loadOpenAIAuth = (await import("../../src/auth")).loadOpenAIAuth
-})
-
-afterAll(() => {
-  restoreEnv("XDG_DATA_HOME", ORIGINAL_XDG_DATA_HOME)
-  restoreEnv("OPENCODE_AUTH_CONTENT", ORIGINAL_AUTH_CONTENT)
-})
-
-function writeAuthFile(content: string): void {
-  writeFileSync(AUTH_FILE, content)
-}
-
-beforeEach(() => {
-  delete process.env.OPENCODE_AUTH_CONTENT
-  // Start each test from a no-credentials baseline; tests opt in to a file.
-  writeAuthFile("{}")
-})
-
-afterEach(() => {
-  delete process.env.OPENCODE_AUTH_CONTENT
-})
-
 describe("loadOpenAIAuth", () => {
-  test("reads a valid oauth entry from OPENCODE_AUTH_CONTENT", async () => {
-    process.env.OPENCODE_AUTH_CONTENT = JSON.stringify({
-      openai: { type: "oauth", access: "tok-env", accountId: "acct-1" },
+  test("resolves the active Codex connection and its account metadata", async () => {
+    const value = integration({
+      type: "oauth",
+      methodID: "chatgpt-browser",
+      access: "resolved-token",
+      metadata: { accountID: "account-1" },
     })
-    expect(await loadOpenAIAuth()).toEqual({ type: "oauth", access: "tok-env", accountId: "acct-1" })
+    expect(await loadOpenAIAuth(value.domain)).toEqual({
+      type: "oauth",
+      access: "resolved-token",
+      accountId: "account-1",
+    })
+    expect(value.active).toHaveBeenCalledWith("openai")
+    expect(value.resolve).toHaveBeenCalledWith({ type: "credential", id: "test" })
   })
 
-  test("prefers OPENCODE_AUTH_CONTENT over the auth.json file", async () => {
-    writeAuthFile(JSON.stringify({ openai: { type: "oauth", access: "tok-file" } }))
-    process.env.OPENCODE_AUTH_CONTENT = JSON.stringify({ openai: { type: "oauth", access: "tok-env" } })
-    expect(await loadOpenAIAuth()).toEqual({ type: "oauth", access: "tok-env" })
+  test("supports Codex device-code credentials without account metadata", async () => {
+    const value = integration({ type: "oauth", methodID: "chatgpt-headless", access: "device-token" })
+    expect(await loadOpenAIAuth(value.domain)).toEqual({ type: "oauth", access: "device-token" })
   })
 
-  test("falls back to the auth.json file when the env var is unset", async () => {
-    writeAuthFile(JSON.stringify({ openai: { type: "oauth", access: "tok-file" } }))
-    expect(await loadOpenAIAuth()).toEqual({ type: "oauth", access: "tok-file" })
+  test("resolves credentials again for every call rather than caching a token", async () => {
+    const value = integration({ type: "oauth", methodID: "chatgpt-browser", access: "first" })
+    expect((await loadOpenAIAuth(value.domain)).access).toBe("first")
+    value.resolve.mockImplementation(async () => ({ type: "oauth", methodID: "chatgpt-browser", access: "second" }))
+    expect((await loadOpenAIAuth(value.domain)).access).toBe("second")
   })
 
-  test("returns undefined when the entry is not an oauth type", async () => {
-    process.env.OPENCODE_AUTH_CONTENT = JSON.stringify({ openai: { type: "api", access: "tok" } })
-    expect(await loadOpenAIAuth()).toBeUndefined()
+  test("rejects missing connections without resolving one", async () => {
+    const value = integration(undefined, false)
+    expect(loadOpenAIAuth(value.domain)).rejects.toThrow("Select an OpenAI Codex")
+    expect(value.resolve).not.toHaveBeenCalled()
   })
 
-  test("returns undefined when access is not a string", async () => {
-    process.env.OPENCODE_AUTH_CONTENT = JSON.stringify({ openai: { type: "oauth", access: 123 } })
-    expect(await loadOpenAIAuth()).toBeUndefined()
+  test.each([
+    undefined,
+    { type: "key", key: "api-key" },
+    { type: "oauth", methodID: "chatgpt-token-sharing", access: "sharing-token" },
+  ])("rejects credentials that cannot use the Codex endpoint: %j", async (credential) => {
+    expect(loadOpenAIAuth(integration(credential).domain)).rejects.toThrow("Select an OpenAI Codex")
   })
 
-  test("returns undefined when there is no openai entry", async () => {
-    process.env.OPENCODE_AUTH_CONTENT = JSON.stringify({ anthropic: { type: "oauth", access: "tok" } })
-    expect(await loadOpenAIAuth()).toBeUndefined()
-  })
-
-  test("returns undefined when the content is not valid JSON", async () => {
-    process.env.OPENCODE_AUTH_CONTENT = "{not json"
-    expect(await loadOpenAIAuth()).toBeUndefined()
-  })
-
-  test("returns undefined when the auth.json file is missing", async () => {
-    rmSync(AUTH_FILE, { force: true })
-    // The read rejects; loadOpenAIAuth swallows it and reports no credentials.
-    expect(await loadOpenAIAuth()).toBeUndefined()
+  test("preserves credential refresh failures", async () => {
+    const value = integration(undefined)
+    value.resolve.mockImplementation(async () => {
+      throw new Error("Reconnect your account")
+    })
+    expect(loadOpenAIAuth(value.domain)).rejects.toThrow("Reconnect your account")
   })
 })

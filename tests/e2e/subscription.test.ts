@@ -1,50 +1,37 @@
-import { beforeAll, describe, expect, test } from "bun:test"
+import { afterAll, beforeAll, describe, expect, test } from "bun:test"
 import { spawn } from "node:child_process"
 import { existsSync } from "node:fs"
-import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises"
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
-import { pathToFileURL } from "node:url"
 
 const WORKDIR = await mkdtemp(path.join(os.tmpdir(), "qa-imagegen-work-"))
-const XDG_CONFIG_HOME = await mkdtemp(path.join(os.tmpdir(), "qa-imagegen-cfg-"))
 const REPO_DIR = path.resolve(import.meta.dir, "../..")
 const RUN_TIMEOUT_MS = 600_000
 const TEST_TIMEOUT_MS = RUN_TIMEOUT_MS + 10_000
 const STYLE = "hand-drawn 90s Japanese animation style"
 
-async function buildPlugin(): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const proc = spawn("bun", ["run", "build"], {
-      cwd: REPO_DIR,
-      stdio: "inherit",
-    })
-    proc.on("error", reject)
-    proc.on("close", (code) => {
-      if (code !== 0) reject(new Error(`bun run build failed (exit=${code})`))
-      else resolve()
-    })
-  })
-}
-
 async function writeOpencodeConfig(): Promise<void> {
-  const cfgDir = path.join(XDG_CONFIG_HOME, "opencode")
-  await mkdir(cfgDir, { recursive: true })
   const config = {
     $schema: "https://opencode.ai/config.json",
-    plugin: [pathToFileURL(REPO_DIR).href],
-    permission: { "*": "deny", gpt_imagegen: "allow" },
+    plugins: [process.env.OPENCODE_E2E_PLUGIN ?? REPO_DIR],
+    permissions: [
+      { action: "*", resource: "*", effect: "deny" },
+      { action: "gpt_imagegen", resource: "*", effect: "allow" },
+    ],
   }
-  await writeFile(path.join(cfgDir, "opencode.jsonc"), JSON.stringify(config, null, 2))
+  await writeFile(path.join(WORKDIR, "opencode.jsonc"), JSON.stringify(config, null, 2))
 }
 
 async function runOpencode(prompt: string): Promise<void> {
   return new Promise((resolve, reject) => {
-    const args = ["run", prompt, "--dir", WORKDIR]
+    const args = ["run", "--server", process.env.OPENCODE_E2E_SERVER ?? "http://127.0.0.1:4196", prompt]
     if (process.env.OPENCODE_MODEL) args.push("--model", process.env.OPENCODE_MODEL)
     const proc = spawn("opencode", args, {
       stdio: "inherit",
-      env: { ...process.env, XDG_CONFIG_HOME },
+      cwd: WORKDIR,
+      // OpenCode run selects its location from PWD before process.cwd().
+      env: { ...process.env, PWD: WORKDIR },
     })
     const timer = setTimeout(() => {
       proc.kill("SIGTERM")
@@ -82,9 +69,11 @@ function readPngDimensions(buf: Buffer): { width: number; height: number } {
 describe("gpt_imagegen e2e (subscription)", () => {
   beforeAll(async () => {
     console.log(`WORKDIR: ${WORKDIR}`)
-    console.log(`XDG_CONFIG_HOME: ${XDG_CONFIG_HOME}`)
-    await buildPlugin()
     await writeOpencodeConfig()
+  })
+
+  afterAll(async () => {
+    await rm(WORKDIR, { recursive: true, force: true })
   })
 
   test(

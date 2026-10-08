@@ -83,13 +83,15 @@ describe("callViaCodexResponses", () => {
 
     const auth = { type: "oauth", access: "tok", accountId: "acct" } as const
     const args: GenerateArgs = { prompt: "a cat", out: "cat.png", quality: "high", size: "1024x1024" }
-    const result = await callViaCodexResponses(auth, args, ["data:image/png;base64,AAA"])
+    const signal = new AbortController().signal
+    const result = await callViaCodexResponses(auth, args, ["data:image/png;base64,AAA"], signal)
 
     expect(result).toBe("PARSED")
     expect(fetchMock).toHaveBeenCalledTimes(1)
     const [url, init] = fetchMock.mock.calls[0]
     expect(url).toBe("https://chatgpt.com/backend-api/codex/responses")
     expect(init.method).toBe("POST")
+    expect(init.signal).toBe(signal)
 
     const headers = init.headers as Record<string, string>
     expect(headers.Authorization).toBe("Bearer tok")

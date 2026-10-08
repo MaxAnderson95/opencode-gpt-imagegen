@@ -1,4 +1,4 @@
-// Minimal subset of OpenCode auth.json's openai OAuth entry required by this plugin.
+// Only the resolved access token and account ID leave OpenCode's credential service.
 export type OpenAIAuth = { type: "oauth"; access: string; accountId?: string }
 
 export type GenerateArgs = {

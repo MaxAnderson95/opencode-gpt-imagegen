@@ -1,52 +1,25 @@
-# AGENTS.md
+# Working on the V2 fork
 
-## Contribution Policy
+This repository is MaxAnderson95's independent OpenCode 2 fork. Read CONTRIBUTING.md when proposing changes to the original upstream repository. Changes here target OpenCode 2 only.
 
-If you are helping someone other than the maintainer (@yuji-hatakeyama) contribute, read [CONTRIBUTING.md](CONTRIBUTING.md) before you write code, and follow it.
+## Runtime and packaging
 
-When you open a pull request, including one for the maintainer, write its description by filling in [.github/pull_request_template.md](.github/pull_request_template.md). Write its title as described in [CONTRIBUTING.md](CONTRIBUTING.md#commit-messages-and-pull-request-titles).
+- Use the repository's Bun toolchain and committed lockfile. Install with `bun install --frozen-lockfile`.
+- Match `@opencode/plugin` to the target host release, currently 2.0.24. The package-age gate can reject a newly published matching SDK; use an explicit `bun install --minimum-release-age=0` only when updating that pinned SDK.
+- The root `index.ts` is the conventional local-loader entrypoint and reexports `src/index.ts`. Package root and `./server` exports point there too. Git installs ship runnable source; they must not depend on lifecycle scripts building `dist/`.
+- `src/index.ts` registers `gpt_imagegen` with the V2 Promise plugin API. The tool's input JSON Schema and `GenerateArgs` in `src/types.ts` must agree.
+- `src/auth.ts` resolves OpenCode's active OpenAI connection on each call. Keep refresh tokens and persisted credentials inside OpenCode. Only Codex browser/device-code OAuth credentials may call the Codex endpoint; API-key and token-sharing routes are outside this fork's scope.
+- Resolve image paths against the executing session's location, which can differ from the plugin instance's location. Pass the tool's cancellation signal to the HTTP request and check it before saving output.
+- Preserve the upstream helper modules for reference-image detection, Codex SSE parsing, and numbered output paths. Output version selection is best-effort, not atomic.
 
-## Project Shape
+## Verification
 
-- Bun is the package manager/runtime; use `bun install --frozen-lockfile` with the committed `bun.lock`.
-- The plugin entry is `src/index.ts` (plugin wiring + tool schema); helpers live in role-based modules — `src/types.ts` (shared types), `src/auth.ts` (auth resolution), `src/input-image.ts` (reference image reading), `src/output-image.ts` (non-overwriting save + message), `src/codex.ts` (Codex backend call + SSE parsing).
-- `bun run build` bundles `src` into a single self-contained `dist/index.js` via `bun build --target node --format esm --packages external` (dependencies, including the `@opencode-ai/plugin` peer dep, stay external). Bundling avoids the extensionless relative imports `tsc` would emit, which native Node ESM cannot resolve. No `.d.ts` is published — the plugin is loaded by OpenCode at runtime, not imported as a typed library.
-- `dist/` is ignored locally but is the publish artifact (just `index.js`). Run `bun run build` before inspecting package output.
-- `bunfig.toml` enforces `install.minimumReleaseAge = 604800` (1 week): newly published versions are filtered out by `bun install` / `bun add` / `bun outdated`.
+- Run `bun run typecheck`, `bun run test`, and the installed `./node_modules/.bin/biome ci .` before publication. `bun run build` checks the bundled ESM output but is not a prerequisite for Git installation.
+- Unit tests live in `tests/unit`; use `bun run test` instead of bare `bun test` so real image generation remains opt-in.
+- `bun run test:e2e_subscription` connects to `OPENCODE_E2E_SERVER`, defaulting to the plugin-dev server at `http://127.0.0.1:4196`. It uses real subscription quota. Use `OPENCODE_E2E_PLUGIN` to test an installed package target; otherwise it tests this local checkout.
+- The e2e suite allows only `gpt_imagegen` through project permissions and removes its temporary output directory. It verifies PNG output, auto-versioning, and reference-image input.
+- Confirm an installed GitHub revision is active, then exercise the actual tool on the target server. Local tests alone do not prove installed behavior.
 
-## Commands
+## Publication
 
-- Tests are split by kind: `tests/unit/` (helper-module unit tests) and `tests/e2e/` (one file per auth path, e.g. `subscription.test.ts`).
-- `bun run typecheck` runs `tsc --noEmit` over `src` and `tests`.
-- `bunx biome ci .` is the CI formatter/linter check.
-- `bun run check` runs `biome check --write .`; it may modify files.
-- `bun run test` runs `bun test tests/unit` — unit tests only, and is what CI uses. (A bare `bun test` would also discover the e2e files under `tests/e2e/` and try to run them for real, so prefer the script.)
-- `bun run test:e2e_subscription` sets `OPENCODE_MODEL=openai/gpt-6-sol` and runs `tests/e2e/subscription.test.ts` (ChatGPT subscription / OAuth path). It can take minutes because it calls `opencode run` and generates real images. The future API-key path gets its own `test:e2e_apikey` script + `tests/e2e/apikey.test.ts`.
-- Each e2e path is its own script (its own `bun test` process), which also avoids the unit-test `process.env` leak into the single-process e2e `opencode` spawn.
-- CI runs `bun run typecheck`, `bunx biome ci .`, and `bun run test`. The e2e suites are not run in CI's default checks (they need real auth + generations); they are invoked separately via their `test:e2e_*` scripts.
-
-## E2E Requirements
-
-- `tests/e2e/subscription.test.ts` shells out to the `opencode` CLI in a temporary workdir. Its configuration denies all tools except `gpt_imagegen` so the agent cannot modify generated files with other tools.
-- E2E requires OpenCode to be authenticated with ChatGPT OAuth; the plugin reads `OPENCODE_AUTH_CONTENT` first, then `$XDG_DATA_HOME/opencode/auth.json`.
-- The e2e tests assert that produced files are valid PNGs and cover the plugin's output auto-versioning behavior.
-
-## Implementation Notes
-
-- The exposed tool is `gpt_imagegen`; it calls the ChatGPT Codex responses endpoint with the hosted `image_generation` tool.
-- Output paths are resolved relative to the OpenCode context directory unless absolute, and existing files are never overwritten; suffixes `-v2` through `-v999` are tried.
-- Reference images are read from paths relative to the OpenCode context directory and are embedded as data URLs after MIME detection.
-
-## Publishing
-
-- `package.json` `files` intentionally publishes only `dist`, `README.md`, and `LICENSE`.
-- `prepublishOnly` runs `bun run build`, so `npm publish` always rebuilds `dist/` first.
-- Release flow: run `bun run release:patch` (or `:minor` / `:major`) on a clean `main`. The npm script chains `scripts/prepare-release.sh <level>` (preflight, diff review, version bump) with `git push --follow-tags`. The shell script checks the working tree is clean and in sync with `origin/main`, prints the commits since the previous tag along with a GitHub compare URL for diff review, asks for confirmation, and runs `npm version <level>` to create the `chore: release X.Y.Z` commit and `vX.Y.Z` tag locally; the push happens only on success.
-- The tag push triggers `.github/workflows/release.yml`, which runs `npm publish --provenance --access public` via npm OIDC trusted publisher (no `NPM_TOKEN` secret) and creates a GitHub release with auto-generated notes. The npm package must have GitHub Actions registered as a trusted publisher on npmjs.com for OIDC to work.
-- Release notes are generated from pull request titles. If the release includes a breaking change (a title with `!`, such as `feat!:`), edit the GitHub release after the workflow creates it, and add a `Breaking changes` section at the top. For each change, write what changed and how users should update their usage, and link the pull request, for example:
-
-  ```markdown
-  ## Breaking changes
-
-  - `size` accepts only `1254x1254`, `1536x1024`, `1024x1536`, `1448x1086`, `1086x1448`, `1672x941`, and `941x1672`. `auto` and other sizes are rejected. Omit `size` to let the backend choose, or pick the size with the closest aspect ratio and resize the output locally. (#108)
-  ```
+Install this fork with `github:MaxAnderson95/opencode-gpt-imagegen#main`. The upstream npm package is separate. Existing npm-release automation belongs to the upstream workflow; use Git publication for this fork unless its owner explicitly requests an npm release.
