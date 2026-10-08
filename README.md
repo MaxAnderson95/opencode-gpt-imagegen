@@ -1,8 +1,5 @@
 # opencode-gpt-imagegen for OpenCode 2
 
-> [!WARNING]
-> This project is a work in progress. It is still being built and is not ready for use.
-
 Generate PNG images through your ChatGPT subscription with the `gpt_imagegen` tool. Reference images can guide new images or edits, and existing output files get a numbered filename instead of being overwritten.
 
 This is Max Anderson's V2-only fork of [yuji-hatakeyama/opencode-gpt-imagegen](https://github.com/yuji-hatakeyama/opencode-gpt-imagegen). It targets OpenCode **2.0.24** and does not support OpenCode 1. The npm package named `opencode-gpt-imagegen` belongs to the upstream project; install this fork from GitHub.
